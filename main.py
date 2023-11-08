@@ -66,13 +66,15 @@ def get_response(question:str) -> str:
 
     global config
 
-    response = "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error."
+    response = "There was an error with the response! Please contact @dobesquiddy if you believe this is an error."
 
     telegram_bot_token = config["TELEGRAM_BOT_TOKEN"]
     #openai.api_key = config["OPENAI_APIKEY"]
     llm = OpenAI(openai_api_key=config["OPENAI_APIKEY"])
 
     relevant_sentences = get_relevant_content(question)
+
+    print(relevant_sentences)
 
     system_template = """
         You are a helpful legal assistant named Tyler that answers questions based on what the user asks.
@@ -96,10 +98,10 @@ def get_response(question:str) -> str:
             string = text
             try: 
                 string = text.split("\n")
-                string = string[:len(string) - 1]
+                new_string = string[:len(string) - 1]
             except:
                 pass
-            return string
+            return new_string
 
 
     chat_prompt = ChatPromptTemplate.from_messages([
@@ -108,13 +110,9 @@ def get_response(question:str) -> str:
     ])
 
     chain = chat_prompt | llm | ResponseParser()
-    try:
-        response = chain.invoke({"question": question, "question_content": relevant_sentences})
-    except:
-        print("There was an error! Sending default error response to the user!")
+    response = chain.invoke({"question": question}, {"question_content": relevant_sentences})
 
-    print(response)
-    return response[10:] if response[0:4] != "There" else response #because it says System: at the start and i dont like that >:(
+    return response[0] if type(response) == list and len(response[0]) > 0 else "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error." #because it says System: at the start and i dont like that >:(
 
 
 # MAIN PORTION

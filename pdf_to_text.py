@@ -18,4 +18,3 @@ def folder_pdf_to_text(folder_path):
     else:
         return final_list
 
-print(folder_pdf_to_text("./pdf_files/"))
