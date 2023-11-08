@@ -10,6 +10,9 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts.chat import ChatPromptTemplate
 import chromadb
+import os
+
+os.environ["TOKERNIZERS_PARALLELISM"] = "false"
 
 # initialization
 
@@ -46,12 +49,21 @@ logging.basicConfig(
 
 # UTILITY FUNCTION PORTION
 def get_relevant_content(question:str) -> str:
+    final_content = ""
     collection = client.get_or_create_collection("tort_law_pdfs")
-    content = ""
-
-    return content
+    results = collection.query(
+        query_texts=[question],
+        n_results=10 #change results return as u go along
+    )
+    content = results["documents"] #THIS IS A LIST
+    for more_content in content: #list in list
+        for words in more_content:
+            final_content += words
+    print(final_content)
+    return final_content
 
 def get_response(question:str) -> str:
+
     global config
 
     response = "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error."
@@ -63,21 +75,31 @@ def get_response(question:str) -> str:
     relevant_sentences = get_relevant_content(question)
 
     system_template = """
-        You are a helpful legal assistant that answers questions based on what the user asks.
+        You are a helpful legal assistant named Tyler that answers questions based on what the user asks.
         If the question does not concern legal issues, decline to answer.
         Do not encourage the user to harm him or herself or anyone else.
-        Answer in the context of Singapore tort law if possible. If it is not possible, state that you are answering under the context of a different genre of law.
+        If the user's query is fewer than five words, ask him to elaborate. Do not attempt to answer it.
+        Answer in a casual tone. Define legal jargon where necessary.
+        Answer in the context of Singapore tort law if possible. Otherwise, decline to answer.
+        If the answer cannot be derived from the following content, decline to answer.
+        {question_content}
     """
     # add {content} later
 
     human_template = "{question}"
 
     class ResponseParser(BaseOutputParser):
-        """Return the output as a string. Simply complete the chain"""
+        """Return the output as a string."""
 
         def parse(self, text: str):
             """Parse the output of an LLM call."""
-            return text
+            string = text
+            try: 
+                string = text.split("\n")
+                string = string[:len(string) - 1]
+            except:
+                pass
+            return string
 
 
     chat_prompt = ChatPromptTemplate.from_messages([
@@ -87,31 +109,33 @@ def get_response(question:str) -> str:
 
     chain = chat_prompt | llm | ResponseParser()
     try:
-        response = chain.invoke({"question": question})
+        response = chain.invoke({"question": question, "question_content": relevant_sentences})
     except:
         print("There was an error! Sending default error response to the user!")
 
-    return response[10:] #because it says System: at the start and i dont like that >:(
-
+    print(response)
+    return response[10:] if response[0:4] != "There" else response #because it says System: at the start and i dont like that >:(
 
 
 # MAIN PORTION
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=start_message)
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_message)
 
 async def credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=credits_message)
-
 
 async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages, context_statement
     question = update.message.text
-    print(f"🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
+    print(f"🟢QUERY {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     response = get_response(question)
-    print(f"🟢🟢🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {response}")
+    print(f"🟢RESPONSE {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {response}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 

@@ -1,3 +1,5 @@
 .env
 data_storage
 pdf_files
+dump_scripts
+env

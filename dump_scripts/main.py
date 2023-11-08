@@ -27,6 +27,7 @@ logging.basicConfig(
 )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🟢 {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Ask me questions about Torts and I shall do my best to answer! Do /help if you need assistance!")
 
 async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
