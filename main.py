@@ -1,6 +1,6 @@
 import logging
 from telegram import Update
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes, Updater, BaseRateLimiter
 from dotenv import dotenv_values
 import openai
 from langchain.llms import OpenAI
@@ -34,6 +34,7 @@ Created by Beth (C&L 2022/2023) in 2 sleepless nights for class participation gr
 
 help_message = """
 Ask whatever questions you have about Singapore Tort Law here and I shall try my best to help 🐍
+Be as specific as you can with the question!
 
 🌟 Other available commands 🌟
 /start - begin!
@@ -48,6 +49,15 @@ logging.basicConfig(
 )
 
 # UTILITY FUNCTION PORTION
+'''class TheRateLimiter(BaseRateLimiter):
+    def __init__(self):
+        super().__init__()
+        self.allowed_updates = {} #tracking allowed updates here
+    
+    def allowed(self, update: Update) -> bool:
+        user_id = update.effective_user.id
+        current_time = self.update_rate_limits(user_id)'''
+
 def get_relevant_content(question:str) -> str:
     final_content = ""
     collection = client.get_or_create_collection("tort_law_pdfs")
@@ -71,23 +81,19 @@ def get_response(question:str) -> str:
     telegram_bot_token = config["TELEGRAM_BOT_TOKEN"]
     #openai.api_key = config["OPENAI_APIKEY"]
     llm = OpenAI(openai_api_key=config["OPENAI_APIKEY"])
-
     relevant_sentences = get_relevant_content(question)
-
-    print(relevant_sentences)
 
     system_template = """
         You are a helpful legal assistant named Tyler that answers questions based on what the user asks.
         If the question does not concern legal issues, decline to answer.
         Do not encourage the user to harm him or herself or anyone else.
-        If the user's query is fewer than five words, ask him to elaborate. Do not attempt to answer it.
+        Do not attempt to finish the user's query.
         Answer in a casual tone. Define legal jargon where necessary.
         Answer in the context of Singapore tort law if possible. Otherwise, decline to answer.
-        If the answer cannot be derived from the following content, decline to answer.
+        If the answer cannot be derived from the following legal case content or your own general knowledge, decline to answer.
         {question_content}
     """
     # add {content} later
-
     human_template = "{question}"
 
     class ResponseParser(BaseOutputParser):
@@ -95,14 +101,7 @@ def get_response(question:str) -> str:
 
         def parse(self, text: str):
             """Parse the output of an LLM call."""
-            string = text
-            try: 
-                string = text.split("\n")
-                new_string = string[:len(string) - 1]
-            except:
-                pass
-            return new_string
-
+            return text
 
     chat_prompt = ChatPromptTemplate.from_messages([
         ("system", system_template),
@@ -110,10 +109,12 @@ def get_response(question:str) -> str:
     ])
 
     chain = chat_prompt | llm | ResponseParser()
-    response = chain.invoke({"question": question}, {"question_content": relevant_sentences})
-
-    return response[0] if type(response) == list and len(response[0]) > 0 else "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error." #because it says System: at the start and i dont like that >:(
-
+    response = chain.invoke({"question": question, "question_content": relevant_sentences})
+    if type(response) == str and len(response) > 0:
+        if "System:" in response:
+            return response.split(":")[1]
+        return response
+    return "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error." #because it says System: at the start and i dont like that >:(
 
 # MAIN PORTION
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -139,7 +140,7 @@ async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
 
-    application = ApplicationBuilder().token(config["TELEGRAM_BOT_TOKEN"]).build()
+    application = ApplicationBuilder().token(config["TELEGRAM_BOT_TOKEN"]).build() #rate_limiter(rate_limiter=).
     
     #command handler loop
     handlers = [
