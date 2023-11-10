@@ -4,6 +4,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # MAIN
 print(">> STEP 1: Ensure you have all the required PDF files inside the 'pdf_files' folder.")
+# RUN chroma run --path "./data_storage/" TO ACTIVATE THE SERVER!!
 
 check = input("Do you have them installed? [Y/N]: ")
 if check.lower() == "n":
@@ -23,14 +24,15 @@ client = chromadb.HttpClient(host="localhost", port=8000)
 '''RUN chroma run --path "./data_storage/" TO ACTIVATE THE SERVER!!'''
 # client.reset() doesnt work unless activated in env variables and im too lazy to do that so deal w it LOL
 
+client.delete_collection("tort_law_pdfs")
 collection = client.get_or_create_collection("tort_law_pdfs")
 
 text_splitter = RecursiveCharacterTextSplitter( # this is a function lol
     # Set a really small chunk size, just to show.
-    chunk_size = 150,
-    chunk_overlap  = 15,
+    chunk_size = 500,
+    chunk_overlap  = 35,
     length_function = len,
-    add_start_index = True,
+    add_start_index = True
 )
 
 num_count = 1
@@ -46,4 +48,4 @@ for item in received_list:
         other_num += 1
     num_count += 1
     
-print(">> Done! Now run langchainvaraiant.py =)")
+print(">> Done! Now run main.py =)")

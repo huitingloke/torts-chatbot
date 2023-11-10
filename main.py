@@ -63,7 +63,7 @@ def get_relevant_content(question:str) -> str:
     collection = client.get_or_create_collection("tort_law_pdfs")
     results = collection.query(
         query_texts=[question],
-        n_results=10 #change results return as u go along
+        n_results=25 #change results return as u go along
     )
     content = results["documents"] #THIS IS A LIST
     for more_content in content: #list in list
@@ -132,9 +132,9 @@ async def credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages, context_statement
     question = update.message.text
-    print(f"🟢QUERY {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
+    print(f"🟢 QUERY {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
     response = get_response(question)
-    print(f"🟢RESPONSE {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {response}")
+    print(f"🟣 RESPONSE {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {response}")
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 
