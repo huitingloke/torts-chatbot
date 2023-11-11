@@ -72,6 +72,29 @@ def get_relevant_content(question:str) -> str:
     print(final_content)
     return final_content
 
+def logging_time(update: Update, message=None) -> None:
+    username = update.message.from_user.__getattribute__('username')
+    chat_id = update.effective_chat.id
+    with open("filelog.txt", "r") as the_file:
+        contents = [line.rstrip() for line in the_file]
+    the_file.close()
+
+    if message: # if its a response from the bot
+        status = "RESPONSE"
+        message = message.strip()
+        
+    elif message != "NA":
+        status = "QUERY"
+        message = update.message.text
+
+    contents.append(f"{status}: {username}:{chat_id} - {message}")
+    
+    with open("filelog.txt", "w") as the_file:
+        for line in contents: the_file.write(line + "\n")
+    the_file.close()
+
+    return
+
 def get_response(question:str) -> str:
 
     global config
@@ -112,7 +135,7 @@ def get_response(question:str) -> str:
     response = chain.invoke({"question": question, "question_content": relevant_sentences})
     if type(response) == str and len(response) > 0:
         if "System:" in response:
-            return response.split(":")[1]
+            return response.split(":")[1] # this is prone to breaking
         return response
     return "There was an error in processing! Please contact @dobesquiddy if you believe this to be an error." #because it says System: at the start and i dont like that >:(
 
@@ -133,10 +156,13 @@ async def conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages, context_statement
     question = update.message.text
     print(f"🟢 QUERY {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {update.message.text}")
+    logging_time(update) #FIRST LOG FOR THE USER
+
     response = get_response(question)
     print(f"🟣 RESPONSE {update.message.from_user.__getattribute__('username')}:{update.effective_chat.id} - {response}")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    logging_time(update, message=response) #SECOND LOG FOR THE RESPONSE
 
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)    
 
 if __name__ == '__main__':
 

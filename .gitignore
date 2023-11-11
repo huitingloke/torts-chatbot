@@ -3,3 +3,5 @@ data_storage
 pdf_files
 dump_scripts
 env
+allowed_users.json
+filelog.txt
